@@ -1,0 +1,243 @@
+<!DOCTYPE html>
+<html lang="en" >
+<head>
+  <meta charset="UTF-8">
+  <title>Language Tutor GPT</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+    #app {
+      height: 100%;
+    }
+    body {
+      font-family: Arial, sans-serif;
+      background-color: #1e1e1e;
+      color: #f1f1f1;
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      overflow: hidden;
+    }
+    .chat-container {
+      display: flex;
+      flex-direction: column;
+      height: 100vh;
+      width: 100%;
+      background-color: #2c2c2c;
+      box-shadow: 0px 4px 10px rgba(0, 0, 0, 0.3);
+      position: relative;
+    }
+    .chat-header {
+      padding: 16px;
+      background-color: #444;
+      color: #f1f1f1;
+      text-align: center;
+      font-weight: bold;
+      position: fixed;    /* Changed from static */
+      top: 0;
+      left: 0;
+      right: 0;
+      text-align: center;
+      z-index: 1000;
+      display: flex;         /* Added */
+      align-items: center;   /* Added */
+      justify-content: center;
+    }
+    .language-select {
+      position: absolute;
+      left: 15px;
+      padding: 5px;
+      border-radius: 4px;
+      border: 1px solid #ffffff;
+      background: transparent;
+      color: white;
+      cursor: pointer;
+    }
+    .language-select option {
+      background: #075e54;
+      color: white;
+    }
+    .chat-messages {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      align-items: center;
+      gap: 15px;
+      background-color: #1e1e1e;
+      padding: 40vh 16px;
+      overflow-y: auto;
+    }
+    .topic-label {
+      padding: 12px 24px;
+      border-radius: 25px;
+      font-size: 18px;
+      color: #f1f1f1;
+      background-color: #555;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .topic-label:hover {
+      background-color: #777;
+    }
+
+    .topic-label.selected {
+      background-color: #333;
+      font-size: 22px;
+    }
+    .chat-input {
+      display: flex;
+      padding: 10px;
+      background-color: #2c2c2c;
+      border-top: 1px solid #444;
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      max-width: 100vw;
+      box-sizing: border-box;
+    }
+    .chat-input input[type="text"] {
+      flex: 1;
+      border: none;
+      padding: 10px 15px;
+      border-radius: 5px;
+      font-size: 16px;
+      outline: none;
+      color: #f1f1f1;
+      background-color: #333;
+    }
+    .chat-input .submit {
+      background-color: #ff5a5f;
+      color: white;
+      border: none;
+      padding: 10px 20px;
+      margin-left: 8px;
+      border-radius: 5px;
+      font-size: 16px;
+      cursor: pointer;
+      transition: background-color 0.3s;
+    }
+    .chat-input button:hover {
+      background-color: #ff3d3f;
+    }
+  </style>
+  <!-- favicon -->
+  <link rel="icon" href="https://lockingdong.github.io/language-tutor/favicon.ico" type="image/png">
+  <!-- for mobile -->
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <!-- for SEO -->
+  <meta name="description" content="A simple chat interface to search for Language tutoring prompts">
+  <meta name="keywords" content="chat, tutor, english, search, gpt">
+  <meta name="author" content="LEE TUNGYING">
+  <meta property="og:title" content="Language Tutor">
+  <meta property="og:description" content="A simple chat interface to search for Language tutoring prompts">
+  <meta property="og:url" content="https://lockingdong.github.io/language-tutor">
+</head>
+<body>
+<!-- partial:index.partial.html -->
+<div id="app">
+  <div class="chat-container">
+    <div class="chat-header">
+      <select class="language-select" v-model="language">
+        <option value="en">English</option>
+        <option value="jp">日本語</option>
+      </select>
+      <span>Language Tutor GPT</span>
+    </div>
+    <div class="chat-messages">
+      <div class="topic-label" v-for="(label, index) in labelList" :class="{selected: selectedTopic === index}" @click="selectedTopic = index">{{label}}</div>
+    </div>
+</div>
+
+<div class="chat-input">
+    <input type="text" placeholder="Type a message..." v-model="message">
+    <button @click="search" class="submit">GO</button>
+</div>
+  
+</div>
+<script src='https://cdnjs.cloudflare.com/ajax/libs/vue/2.7.8/vue.min.js'></script>
+<script>
+  const promptMapEn = {
+    0: "Translate this Chinese sentence into English and explain its meaning and usage as a teacher would. Please respond in English.: ",
+    1: "Translate this English sentence into Chinese and explain its meaning and usage as a teacher would. Please respond in English.: ",
+    2: "Correct the grammar of this sentence, and explain the reasons for the corrections as a teacher would. Please respond in English.: ",
+    3: "List other ways to say this English sentence, and explain as a teacher would. Please respond in English.: "
+  }
+
+  const promptMapJp = {
+    0: "Translate this Chinese sentence into Japanese and explain its meaning and usage as a teacher would. Please respond in Traditional Chinese.: ",
+    1: "Translate this Japanese sentence into Chinese and explain its meaning and usage as a teacher would. Please respond in Traditional Chinese.: ",
+    2: "Correct the grammar of this sentence, and explain the reasons for the corrections as a teacher would. Please respond in Traditional Chinese.: ",
+    3: "List other ways to say this Japanese sentence, and explain as a teacher would. Please respond in Traditional Chinese.: "
+  }
+
+  const promptMaps = {
+    "en": promptMapEn,
+    "jp": promptMapJp
+  }
+
+  const labelListMap = {
+    "en": ['中→英', '英→中', '修正文法', '替換詞句'],
+    "jp": ['中→日', '日→中', '修正文法', '替換詞句']
+  }
+
+  const searchGPTUrl = "https://chatgpt.com/?q="
+
+  new Vue({
+    el: '#app',
+    data: {
+      language: 'en',
+      message: '',
+      selectedTopic: 0,
+      promptMaps: promptMaps,
+      labelListMap: labelListMap,
+      searchGPTUrl: searchGPTUrl,
+    },
+    watch: {
+      language(newValue) {
+        localStorage.setItem('language', newValue);
+      },
+      selectedTopic(newValue) {
+        localStorage.setItem('selectedTopic', newValue);
+      }
+    },
+    computed: {
+      searchUrl() {
+        console.log(this.promptMaps[this.language][this.selectedTopic])
+        return this.searchGPTUrl + this.promptMaps[this.language][this.selectedTopic] + this.message
+      },
+      labelList() {
+        return this.labelListMap[this.language]
+      }
+    },
+    methods: {
+      search() {
+        // check if the message is empty
+        if (this.message === '') {
+          alert('Please type a message')
+          return
+        }
+
+        // check if the message is too long
+        if (this.message.length > 100) {
+          alert('Message must be less than 100 characters')
+          return
+        }
+
+        window.open(this.searchUrl, '_blank')
+        this.message = ''
+      }
+    },
+    mounted() {
+      // Restore state from localStorage
+      this.language = localStorage.getItem('language') || 'en'
+      this.selectedTopic = parseInt(localStorage.getItem('selectedTopic')) || 0
+    },
+  });
+</script>
+
+</body>
+</html>
